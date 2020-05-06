@@ -1,6 +1,6 @@
-# notes
+# Flutter_Notes
 
-A new Flutter project.
+Flutter project like notes.
 
 ## Getting Started
 
