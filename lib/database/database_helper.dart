@@ -42,7 +42,7 @@ class DatabaseHelper {
   Future<List> getAllNotes() async {
     var dbClient = await db;
     var sqlQuery = "SELECT * FROM ${Constants.TABLE_NAME} ORDER BY ${Constants.COLUMN_TEXT}";
-    var result = await dbClient.rawQuery(sql);
+    var result = await dbClient.rawQuery(sqlQuery);
 
     return result.toList();
   }
@@ -57,7 +57,7 @@ class DatabaseHelper {
 
   Future<Note> getSingleItem(int id) async {
     var dbClient = await db;
-    var sqlQuery = "SELECT * FROM ${Constants.TABLE_NAME} WHERE ${Constants.COLUMN_ID} = $id"
+    var sqlQuery = "SELECT * FROM ${Constants.TABLE_NAME} WHERE ${Constants.COLUMN_ID} = $id";
     var result = await dbClient.rawQuery(sqlQuery);
 
     if(result == null) return null;
