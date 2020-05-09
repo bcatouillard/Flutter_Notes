@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:notes/ui/homePage.dart';
+import 'package:flutter/rendering.dart';
 
 void main() {
-  runApp(MaterialApp (
-    title: "My Notes",
-    home: NotesList(),
-  ));
+  runApp(MyApp());
 }
 
-class NotesList extends StatefulWidget {
+class MyApp extends StatelessWidget {
+  // This widget is the root of your application.
   @override
-  _NotesListState createState() => _NotesListState();
-}
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        fontFamily: "Roboto",
+        iconTheme: IconThemeData(color: Colors.black),
+        primaryTextTheme: TextTheme(
+          title: TextStyle(color: Colors.black),
+        ),
+        primarySwatch: Colors.blue,
+      ),
+      home: HomePage(),
 
-class _NotesListState extends State<NotesList> {
-  @override
-  Widget build(BuildContext context){
-    return Container();
+    );
   }
 }

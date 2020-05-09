@@ -1,49 +1,27 @@
+import 'dart:convert';
+import 'dart:ui';
+
 class Note {
-  String _text, _date;
-  int _id;
+  int id;
+  String title;
+  String content;
+  DateTime date_created;
+  DateTime date_last_edited;
+  Color note_color;
 
-  Note.update(this._text, this._date, this._id);
+  Note(this.id, this.title, this.content, this.date_created, this.date_last_edited,this.note_color);
 
-  Note(this._text,this._date);
-
-  Note.map(dynamic obj) {
-    this._text = obj['name'];
-    this._date = obj['date'];
-    this._id = obj['id'];
+  Map<String, dynamic> toMap(bool forUpdate) {
+    var data = {
+      'title': utf8.encode(title),
+      'content': utf8.encode( content ),
+      'date_created': epochFromDate( date_created ),
+      'date_last_edited': epochFromDate( date_last_edited ),
+      'note_color': note_color.value
+    };
+    if(forUpdate){  data["id"] = this.id;  }
+    return data;
   }
 
-  Note.fromMap(Map<String, dynamic> map){
-    this._text = map['name'];
-    this._date = map['date'];
-    this._id = map['id'];
-  }
-
-  Map<String, dynamic> toMap() {
-    Map<String, dynamic> map = new Map<String, dynamic>();
-
-    map['name'] = this._text;
-    map['date'] = this._date;
-
-    if(id != null) map['id'] = this._id;
-
-    return map;
-  }
-
-  get name => _text;
-
-  set name(value){
-    _text = value;
-  }
-
-  get date => _date;
-
-  set date(value){
-    _date == value;
-  }
-
-  int get id => _id;
-
-  set id(int value){
-    _id = value;
-  }
+ int epochFromDate(DateTime dt) {  return dt.millisecondsSinceEpoch ~/ 1000; }
 }
