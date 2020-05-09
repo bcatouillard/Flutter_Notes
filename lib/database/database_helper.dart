@@ -1,81 +1,149 @@
-import 'dart:async';
-import 'dart:io';
 import 'package:sqflite/sqflite.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart';
-import 'package:notes/util/constants.dart';
+import 'package:sqflite/sqlite_api.dart';
+import 'dart:async';
 import 'package:notes/models/note.dart';
 
-class DatabaseHelper {
-  static final DatabaseHelper _INSTANCE = new DatabaseHelper.make();
-  factory DatabaseHelper() => _INSTANCE;
-  static Database _db;
-  DatabaseHelper.make();
+class NotesDBHandler {
 
-  Future<Database> get db async {
-    if (_db != null) return _db;
-    _db = await initDB();
-    return _db;
+  final databaseName = "notes.db";
+  final tableName = "notes";
+
+
+  final fieldMap = {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "title": "BLOB",
+    "content": "BLOB",
+    "date_created": "INTEGER",
+    "date_last_edited": "INTEGER",
+    "note_color": "INTEGER",
+    "is_archived": "INTEGER"
+  };
+
+
+  static Database _database;
+
+
+  Future<Database> get database async {
+    if (_database != null)
+      return _database;
+
+    _database = await initDB();
+    return _database;
   }
+
 
   initDB() async {
-    Directory directory = await getApplicationDocumentsDirectory();
-    String path = join(directory.path, Constants.DBNAME);
-    var myDb = openDatabase(path, version: Constants.DB_VERSION, onCreate: _onCreate); 
+    var path = await getDatabasesPath();
+    var dbPath = join(path, 'notes.db');
+    // ignore: argument_type_not_assignable
+    Database dbConnection = await openDatabase(
+        dbPath, version: 1, onCreate: (Database db, int version) async {
+      print("executing create query from onCreate callback");
+      await db.execute(_buildCreateQuery());
+    });
 
-    return myDb;
+    await dbConnection.execute(_buildCreateQuery());
+    _buildCreateQuery();
+    return dbConnection;
   }
 
-  void _onCreate(Database db, int version) async {
-    await db.execute(
-      "CREATE TABLE ${Constants.TABLE_NAME} (${Constants.COLUMN_ID} INTEGER PRIMARY KEY, ${Constants.COLUMN_TEXT} TEXT, ${Constants.COLUMN_DATE} TEXT);"
+
+// build the create query dynamically using the column:field dictionary.
+  String _buildCreateQuery() {
+    String query = "CREATE TABLE IF NOT EXISTS ";
+    query += tableName;
+    query += "(";
+    fieldMap.forEach((column, field){
+      print("$column : $field");
+      query += "$column $field,";
+    });
+
+
+    query = query.substring(0, query.length-1);
+    query += " )";
+
+   return query;
+
+  }
+
+  static Future<String> dbPath() async {
+    String path = await getDatabasesPath();
+    return path;
+  }
+
+  Future<int> insertNote(Note note, bool isNew) async {
+    // Get a reference to the database
+    final Database db = await database;
+    print("insert called");
+
+    // Insert the Notes into the correct table.
+    await db.insert('notes',
+      isNew ? note.toMap(false) : note.toMap(true),
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
+
+    if (isNew) {
+      var one = await db.query("notes", orderBy: "date_last_edited desc",
+          where: "is_archived = ?",
+          whereArgs: [0],
+          limit: 1);
+      int latestId = one.first["id"] as int;
+      return latestId;
+    }
+    return note.id;
   }
 
-  Future<int> insertNote(Note note) async {
-    var dbClient = await db;
-    int count = await dbClient.insert(Constants.TABLE_NAME, note.toMap());
 
-    return count;
+  Future<bool> copyNote(Note note) async {
+    final Database db = await database;
+    try {
+      await db.insert("notes",note.toMap(false), conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch(Error) {
+      print(Error);
+      return false;
+    }
+    return true;
   }
 
-  Future<List> getAllNotes() async {
-    var dbClient = await db;
-    var sqlQuery = "SELECT * FROM ${Constants.TABLE_NAME} ORDER BY ${Constants.COLUMN_TEXT}";
-    var result = await dbClient.rawQuery(sqlQuery);
 
-    return result.toList();
+  Future<bool> archiveNote(Note note) async {
+    if (note.id != -1) {
+      final Database db = await database;
+
+      int idToUpdate = note.id;
+
+      db.update("notes", note.toMap(true), where: "id = ?",
+          whereArgs: [idToUpdate]);
+    }
   }
 
-  Future<int> getCount() async {
-    var dbClient = await db;
-    var sqlQuery = "SELECT COUNT(*) FROM ${Constants.TABLE_NAME}";
-    int count = Sqflite.firstIntValue(await dbClient.rawQuery(sqlQuery));
-
-    return count;
+  Future<bool> deleteNote(Note note) async {
+    if(note.id != -1) {
+      final Database db = await database;
+      try {
+        await db.delete("notes",where: "id = ?",whereArgs: [note.id]);
+        return true;
+      } catch (Error){
+        print("Error deleting ${note.id}: ${Error.toString()}");
+        return false;
+      }
+    }
   }
 
-  Future<Note> getSingleItem(int id) async {
-    var dbClient = await db;
-    var sqlQuery = "SELECT * FROM ${Constants.TABLE_NAME} WHERE ${Constants.COLUMN_ID} = $id";
-    var result = await dbClient.rawQuery(sqlQuery);
 
-    if(result == null) return null;
+  Future<List<Map<String,dynamic>>> selectAllNotes() async {
+    final Database db = await database;
+    // query all the notes sorted by last edited
+    var data = await db.query("notes", orderBy: "date_last_edited desc",
+        where: "is_archived = ?",
+        whereArgs: [0]);
 
-    return new Note.fromMap(result.first);
+    return data;
+
   }
 
-  Future<int> deleteItem(int id) async {
-    var dbClient = await db;
-    int count = await dbClient.delete(Constants.TABLE_NAME, where: "${Constants.COLUMN_ID} = ?", whereArgs: [id]);
 
-    return count;
-  }
 
-  Future<int> updateItem(Note note) async {
-    var dbCclient = await db;
-    int count = await dbCclient.update(Constants.TABLE_NAME, note.toMap(), where: "${Constants.COLUMN_ID} = ?", whereArgs: [note.id]);
-
-    return count;
-  }
 }
+
